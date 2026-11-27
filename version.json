@@ -1,5 +1,6 @@
+
 {
-  "version": "1.0.1",
-  "download_url": "https://github.com/riad7jr/Riad-App/releases/download/v1.0.1/Riad_App_Setup.exe",
-  "release_notes": "New fullscreen support, optimized backgrounds, background music and improved startup experience."
+  "version": "1.1.1",
+  "download_url": "https://github.com/riad7jr/Riad-App/releases/download/v1.1.1/Riad_App_Setup.exe",
+  "release_notes": "Added Math with Riad section, improved application features and fixed minor issues."
 }

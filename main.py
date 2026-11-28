@@ -392,7 +392,10 @@ def parse_real_number(value):
     """Safely evaluate a real-number expression such as sqrt(2), 2**3 or 3/4."""
     import ast
     import math
+    import re
     expression = value.strip().lower().replace("π", "pi").replace("^", "**")
+    # Accept leading-zero integer literals as decimal numbers (01 -> 1).
+    expression = re.sub(r"(?<![A-Za-z0-9_.])0+([0-9]+)(?![A-Za-z0-9_.])", r"\1", expression)
     if not expression:
         raise ValueError("Please enter a number.")
     tree = ast.parse(expression, mode="eval")
@@ -421,6 +424,8 @@ def parse_numeric_expression(value):
         raise ValueError("Please enter a number or mathematical expression.")
     text = text.replace("^", "**").replace("p", "pi")
     text = re.sub(r"(\d)(pi)", r"\1*\2", text)
+    # Accept leading-zero integer literals as decimal numbers (01 -> 1).
+    text = re.sub(r"(?<![A-Za-z0-9_.])0+([0-9]+)(?![A-Za-z0-9_.])", r"\1", text)
     tree = ast.parse(text, mode="eval")
     allowed = (ast.Expression, ast.BinOp, ast.UnaryOp, ast.Add, ast.Sub, ast.Mult,
                ast.Div, ast.Pow, ast.USub, ast.UAdd, ast.Constant, ast.Name,
@@ -692,9 +697,9 @@ def complex_converter_screen():
                 equation = tk.Frame(card, bg=card_bg)
                 equation.pack(expand=True, pady=(5, 12))
                 tk.Label(equation, text=value, bg=card_bg, fg="#20242A",
-                         font=("Cambria Math", 22)).pack(side="left", anchor="s", padx=(0, 1))
+                         font=("Cambria Math", 22), padx=0, borderwidth=0).pack(side="left", anchor="s", padx=(0, 0))
                 tk.Label(equation, text=exponent, bg=card_bg, fg="#20242A",
-                         font=("Cambria Math", 15)).pack(side="left", anchor="n", pady=(0, 13), padx=(1, 0))
+                         font=("Cambria Math", 15), padx=0, borderwidth=0).pack(side="left", anchor="n", pady=(0, 13), padx=(0, 0))
 
         # Algebraic output uses the same framed card layout as the other forms.
         formula_card("ALGEBRAIC FORM", algebraic, "#15934D", CARD_BG,
@@ -709,9 +714,9 @@ def complex_converter_screen():
         separator()
 
         section_title("Exponential Form")
-        formula_card("RADIANS", "Z = {}e".format(r_text), PURPLE, PURPLE_BG,
+        formula_card("RADIANS", "Z = {} e".format(r_text), PURPLE, PURPLE_BG,
                      exponent="j " + rad_label, border_color="#D2E3FA")
-        formula_card("DEGREES", "Z = {}e".format(r_text), PURPLE, PURPLE_BG,
+        formula_card("DEGREES", "Z = {} e".format(r_text), PURPLE, PURPLE_BG,
                      exponent="j " + deg_label, border_color="#D2E3FA")
         canvas.yview_moveto(0)
         result_frame.update_idletasks()
@@ -1101,7 +1106,7 @@ def pin_screen():
 
     pin_frame = tk.Frame(card, bg="#FFFFFF", width=340, height=48,
                          highlightthickness=2, highlightbackground=ACCENT)
-    pin_frame.place(relx=0.5, y=93, anchor="n")
+    pin_frame.place(relx=0.5, y=80, anchor="n")
     pin_frame.pack_propagate(False)
 
     pin_entry = tk.Entry(
@@ -1128,7 +1133,7 @@ def pin_screen():
 
     status_label = tk.Label(card, text="", font=("Segoe UI", 9),
                             bg=PANEL, fg="#F28B82")
-    status_label.place(relx=0.5, y=148, anchor="n")
+    status_label.place(relx=0.5, y=132, anchor="n")
 
     def shake_pin_frame():
         # Only the PIN input frame moves; the buttons and the rest of the

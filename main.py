@@ -538,13 +538,13 @@ def complex_converter_screen():
         if form.get() == "Algebraic":
             field_color = GREEN
             tk.Label(fields, text="Real part (a)", bg=PAGE_BG, fg=field_color,
-                     font=("Segoe UI", 9)).pack()
-            real_entry = tk.Entry(fields, font=("Segoe UI", 12), justify="center", width=26, relief="solid", bd=1)
-            real_entry.pack(pady=2)
+                     font=("Segoe UI", 12)).pack()
+            real_entry = tk.Entry(fields, font=("Segoe UI", 12), justify="center", width=28, relief="solid", bd=1)
+            real_entry.pack(pady=2, ipady=2)
             tk.Label(fields, text="Imaginary part (b) — enter number only, no j",
-                     bg=PAGE_BG, fg=field_color, font=("Segoe UI", 9)).pack()
-            imag_entry = tk.Entry(fields, font=("Segoe UI", 12), justify="center", width=26, relief="solid", bd=1)
-            imag_entry.pack(pady=2)
+                     bg=PAGE_BG, fg=field_color, font=("Segoe UI", 12)).pack()
+            imag_entry = tk.Entry(fields, font=("Segoe UI", 12), justify="center", width=28, relief="solid", bd=1)
+            imag_entry.pack(pady=2, ipady=2)
             real_entry.focus_set()
             real_entry.bind("<Return>", lambda event: imag_entry.focus_set())
             imag_entry.bind("<Return>", lambda event: convert())
@@ -575,23 +575,23 @@ def complex_converter_screen():
                 unit_buttons[label] = button
             choose_unit(unit.get())
             tk.Label(fields, text="Module (r)", bg=PAGE_BG, fg=BLUE,
-                     font=("Segoe UI", 9)).pack(pady=(2, 0))
-            mag_entry = tk.Entry(fields, font=("Segoe UI", 12), justify="center", width=26, relief="solid", bd=1)
-            mag_entry.pack(pady=2)
+                     font=("Segoe UI", 12)).pack(pady=(2, 0))
+            mag_entry = tk.Entry(fields, font=("Segoe UI", 12), justify="center", width=28, relief="solid", bd=1)
+            mag_entry.pack(pady=2, ipady=2)
             tk.Label(fields, text="Angle (θ) — use p for π in Radian mode",
-                     bg=PAGE_BG, fg=BLUE, font=("Segoe UI", 9)).pack()
-            angle_entry = tk.Entry(fields, font=("Segoe UI", 12), justify="center", width=26, relief="solid", bd=1)
-            angle_entry.pack(pady=2)
+                     bg=PAGE_BG, fg=BLUE, font=("Segoe UI", 12)).pack()
+            angle_entry = tk.Entry(fields, font=("Segoe UI", 12), justify="center", width=28, relief="solid", bd=1)
+            angle_entry.pack(pady=2, ipady=2)
             mag_entry.focus_set()
             mag_entry.bind("<Return>", lambda event: angle_entry.focus_set())
             angle_entry.bind("<Return>", lambda event: convert())
             inputs["entries"] = (mag_entry, angle_entry)
 
         # Subtle left-side syntax guide for mathematical input.
-        hint = "p : π\npower : **\nsqrt(x) : √x"
+        hint = "π : p\npower : **\nsqrt(x) : √x"
         hint_label = tk.Label(fields, text=hint, justify="left", anchor="w",
                               bg=PAGE_BG, fg="#858B92",
-                              font=("Segoe UI", 8))
+                              font=("Segoe UI", 12))
         hint_label.place(relx=0.015, rely=0.48, anchor="w")
 
         tk.Button(fields, text="CONVERT", command=convert, bg="#1689D4", fg="#FFFFFF",
@@ -1058,6 +1058,40 @@ def install_downloaded_update(installer_path, latest_version):
 # ---------------------------------------------------------------------------
 APP_PIN = "071225"
 PIN_ATTEMPTS = 0
+PIN_REENTRY_LIMIT = 3
+
+
+def pin_state_path():
+    """Store PIN progress outside the installation folder."""
+    app_data = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    state_dir = os.path.join(app_data, "RiadApp")
+    return os.path.join(state_dir, "pin_state.json")
+
+
+def save_pin_state(reentries=0, unlocked=False):
+    try:
+        state_path = pin_state_path()
+        os.makedirs(os.path.dirname(state_path), exist_ok=True)
+        with open(state_path, "w", encoding="utf-8") as state_file:
+            json.dump({"unlocked": unlocked, "reentries": reentries}, state_file)
+        return True
+    except Exception:
+        return False
+
+
+def should_skip_pin():
+    """Skip PIN permanently after three launches following first verification."""
+    try:
+        with open(pin_state_path(), "r", encoding="utf-8") as state_file:
+            state = json.load(state_file)
+        if not state.get("unlocked", False):
+            return False
+
+        reentries = int(state.get("reentries", 0)) + 1
+        save_pin_state(reentries=reentries, unlocked=True)
+        return reentries >= PIN_REENTRY_LIMIT
+    except Exception:
+        return False
 
 
 def pin_screen():
@@ -1156,6 +1190,19 @@ def pin_screen():
 
         if entered_pin == APP_PIN:
             PIN_ATTEMPTS = 0
+            # Mark the PIN as verified only on the first successful entry.
+            # Do not reset the launch counter when the PIN is entered again;
+            # otherwise every protected launch would restart the count at zero.
+            try:
+                with open(pin_state_path(), "r", encoding="utf-8") as state_file:
+                    previous_state = json.load(state_file)
+                if previous_state.get("unlocked", False):
+                    current_reentries = int(previous_state.get("reentries", 0))
+                else:
+                    current_reentries = 0
+            except Exception:
+                current_reentries = 0
+            save_pin_state(reentries=current_reentries, unlocked=True)
             # Start background music only after successful PIN verification.
             initialize_music()
             home_screen()
@@ -1198,7 +1245,11 @@ root.protocol("WM_DELETE_WINDOW", exit_app)
 root.bind("<Escape>", handle_escape)
 root.bind("<F11>", lambda event: toggle_fullscreen())
 
-# Keep the application silent on the PIN screen. Music starts only after
-# the correct PIN is entered and the main home screen is opened.
-pin_screen()
+# Keep the application silent on the PIN screen. After three launches
+# following the first successful PIN entry, open the home screen directly.
+if should_skip_pin():
+    initialize_music()
+    home_screen()
+else:
+    pin_screen()
 root.mainloop()
